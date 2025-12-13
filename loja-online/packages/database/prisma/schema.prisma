@@ -1,14 +1,188 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// packages/database/prisma/schema.prisma
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------- ENUMS ----------------------
+
+enum Role {
+  CLIENT
+  SELLER
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CANCELED
+  SHIPPED
+}
+
+enum DiscountType {
+  PERCENTAGE   // Ex: 10% off
+  FIXED_AMOUNT // Ex: R$ 50,00 off
+}
+
+// Categorias baseadas na imagem enviada
+enum ProductCategory {
+  VEHICLES              // Veículos
+  SUPERMARKET           // Supermercado
+  TECHNOLOGY            // Tecnologia
+  HOME_FURNITURE        // Casa e Móveis
+  APPLIANCES            // Eletrodomésticos
+  SPORTS_FITNESS        // Esportes e Fitness
+  TOOLS                 // Ferramentas
+  CONSTRUCTION          // Construção
+  INDUSTRY_COMMERCE     // Indústria e Comércio
+  BUSINESS              // Para seu Negócio
+  PET_SHOP              // Pet Shop
+  HEALTH                // Saúde
+  VEHICLE_ACCESSORIES   // Acessórios para Veículos
+  BEAUTY_PERSONAL_CARE  // Beleza e Cuidado Pessoal
+  FASHION               // Moda
+  BABIES                // Bebês
+  TOYS                  // Brinquedos
+  REAL_ESTATE           // Imóveis
+  OTHER
+}
+
+// ---------------------- MODELS ----------------------
+
+model User {
+  id           String    @id @default(uuid())
+  name         String
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  role         Role      @default(CLIENT)
+  
+  // Novo: Avatar / Foto de Perfil
+  avatarUrl    String?   @map("avatar_url")
+
+  // Novo: MFA (Multi-Factor Authentication)
+  mfaCode      String?   @map("mfa_code")       // O código de 6 dígitos
+  mfaExpiresAt DateTime? @map("mfa_expires_at") // Validade do código
+  
+  // Soft Delete & Status
+  isActive     Boolean   @default(true) @map("is_active") 
+  deletedAt    DateTime? @map("deleted_at")               
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  // Relacionamentos
+  products     Product[] 
+  orders       Order[]   
+  cart         Cart?
+  favorites    Favorite[]
+  salesItems   OrderItem[]
+
+  @@map("users")
+}
+
+model Product {
+  id            String          @id @default(uuid())
+  sellerId      String          @map("seller_id")
+  name          String
+  description   String          @db.Text
+  price         Decimal         @db.Decimal(10, 2)
+  stockQuantity Int             @map("stock_quantity")
+  
+  // Novo: Categoria
+  category      ProductCategory @default(OTHER)
+
+  // Novo: Descontos
+  discountValue Decimal?        @map("discount_value") @db.Decimal(10, 2) // Valor do desconto
+  discountType  DiscountType?   @map("discount_type")                     // Tipo (Porcentagem ou Fixo)
+
+  // Novo: Múltiplas Imagens (Substitui o antigo imageUrl)
+  images        ProductImage[]
+
+  isPublished   Boolean         @default(true) @map("is_published")
+  createdAt     DateTime        @default(now()) @map("created_at")
+
+  seller        User            @relation(fields: [sellerId], references: [id])
+  orderItems    OrderItem[]
+  cartItems     CartItem[]
+  favoritedBy   Favorite[]
+
+  @@map("products")
+}
+
+// Nova Tabela para Múltiplas Imagens
+model ProductImage {
+  id        String   @id @default(uuid())
+  productId String   @map("product_id")
+  url       String   // URL da imagem no S3
+  isMain    Boolean  @default(false) @map("is_main") // Define se é a capa do produto
+
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_images")
+}
+
+model Order {
+  id          String      @id @default(uuid())
+  clientId    String      @map("client_id")
+  totalAmount Decimal     @map("total_amount") @db.Decimal(10, 2)
+  status      OrderStatus @default(PENDING)
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  client      User        @relation(fields: [clientId], references: [id])
+  items       OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String  @map("order_id")
+  productId String  @map("product_id")
+  sellerId  String  @map("seller_id") 
+  quantity  Int
+  
+  // Preço Unitário FINAL (já considerando desconto na hora da compra)
+  unitPrice Decimal @map("unit_price") @db.Decimal(10, 2) 
+
+  order     Order   @relation(fields: [orderId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
+  seller    User    @relation(fields: [sellerId], references: [id])
+
+  @@map("order_items")
+}
+
+model Cart {
+  id        String     @id @default(uuid())
+  clientId  String     @unique @map("client_id")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  client    User       @relation(fields: [clientId], references: [id])
+  items     CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String  @id @default(uuid())
+  cartId    String  @map("cart_id")
+  productId String  @map("product_id")
+  quantity  Int
+
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@map("cart_items")
+}
+
+model Favorite {
+  userId    String @map("user_id")
+  productId String @map("product_id")
+
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([userId, productId]) 
+  @@map("favorites")
 }
