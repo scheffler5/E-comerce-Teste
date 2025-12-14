@@ -16,7 +16,7 @@ export class AuthService {
     private prisma: DatabaseService,
     private jwtService: JwtService,
     private mailService: MailService,
-  ) {}
+  ) { }
 
   async login(loginDto: { identifier: string; password: string }) {
     const user = await this.prisma.user.findFirst({
@@ -165,11 +165,10 @@ export class AuthService {
       });
     }
 
-    try {
-      await this.mailService.sendMfaEmail(data.email, code);
-    } catch (e) {
-      console.error('Error calling mail service:', e);
-    }
+    // Fire and forget email
+    this.mailService.sendMfaEmail(data.email, code).catch((err) => {
+      console.error('Error sending email in background:', err);
+    });
 
     return { message: 'Cadastro iniciado. Verifique seu email.' };
   }
