@@ -1,45 +1,47 @@
 import { Injectable, Logger } from '@nestjs/common';
+import * as nodemailer from 'nodemailer';
 import { ConfigService } from '@nestjs/config';
-import { Resend } from 'resend';
 
 @Injectable()
 export class MailService {
-  private resend: Resend;
+  private transporter: nodemailer.Transporter;
   private readonly logger = new Logger(MailService.name);
 
   constructor(private readonly configService: ConfigService) {
-    // Pega a chave que você colocou no .env do Render
-    const apiKey = this.configService.getOrThrow<string>('RESEND_API_KEY');
-    this.resend = new Resend(apiKey);
+    this.transporter = nodemailer.createTransport({
+      host: this.configService.getOrThrow('SMTP_HOST'), // smtp-relay.brevo.com
+      port: this.configService.getOrThrow('SMTP_PORT'), // 587
+      secure: false, // Porta 587 exige false
+      auth: {
+        user: this.configService.getOrThrow('SMTP_USER'), // Seu login do Brevo
+        pass: this.configService.getOrThrow('SMTP_PASS'), // Sua senha do Brevo
+      },
+      tls: {
+        rejectUnauthorized: false,
+      },
+    });
   }
 
   async sendMfaEmail(email: string, code: string) {
+    // IMPORTANTE: O 'from' deve ser um email validado na sua conta Brevo
+    // Se você validou seu gmail lá, use ele.
+    const fromUser = "seu_email_validado_no_brevo@gmail.com";
+
+    this.sendMailInBackground(fromUser, email, code);
+  }
+
+  private async sendMailInBackground(from: string, to: string, code: string) {
     try {
-      this.logger.log(`📤 Enviando email via Resend para ${email}...`);
-
-      // OBSERVAÇÃO IMPORTANTE:
-      // Sem domínio próprio, o 'from' OBRIGATORIAMENTE tem que ser esse abaixo.
-      // O 'to' só pode ser o email que você usou para criar a conta no Resend.
-      const data = await this.resend.emails.send({
-        from: 'onboarding@resend.dev',
-        to: email,
-        subject: 'Seu Código de Verificação - Loja Online',
-        html: `
-            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eaeaea; border-radius: 10px;">
-              <h2 style="color: #000;">Verifique seu acesso</h2>
-              <p>Seu código de confirmação é:</p>
-              <div style="background: #f0f0f0; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
-                <strong style="font-size: 32px; letter-spacing: 5px; color: #333;">${code}</strong>
-              </div>
-              <p style="color: #666; font-size: 14px;">Válido por 10 minutos.</p>
-            </div>
-          `,
+      this.logger.log(`🚀 Enviando via Brevo para ${to}...`);
+      await this.transporter.sendMail({
+        from: `"Loja Online" <${from}>`,
+        to: to,
+        subject: 'Seu Código de Verificação',
+        html: `<p>Seu código é: <b>${code}</b></p>`,
       });
-
-      this.logger.log(`✅ Email enviado com sucesso! ID: ${data.data?.id}`);
+      this.logger.log(`✅ Email enviado!`);
     } catch (error) {
-      // Loga o erro mas não derruba a aplicação
-      this.logger.error(`❌ Erro no Resend: ${error.message}`, error);
+      this.logger.error(`❌ Erro Brevo: ${error.message}`);
     }
   }
 }
