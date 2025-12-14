@@ -54,27 +54,33 @@ export class StorageService {
     const fileExtension = file.originalname.split('.').pop();
     const fileName = `${uuidv4()}.${fileExtension}`;
 
-    // Envia para o S3 (LocalStack)
+    // 1. Envia o arquivo (Funciona igual para AWS, Supabase ou LocalStack)
     await this.s3Client.send(
       new PutObjectCommand({
         Bucket: this.bucketName,
         Key: fileName,
         Body: file.buffer,
         ContentType: file.mimetype,
-        ACL: 'public-read',
+        ACL: 'public-read', // Nota: O Supabase ignora isso, você configura no painel dele
       }),
     );
 
-    // Generate URL based on environment
+    // 2. Gera a URL correta dependendo do provedor
     const endpoint = this.configService.get<string>('AWS_S3_ENDPOINT');
     let fileUrl: string;
 
-    if (process.env.NODE_ENV === 'production' || !endpoint) {
+    if (!endpoint) {
+      // Se NÃO tem endpoint, assume que é Amazon S3 original
       fileUrl = `https://${this.bucketName}.s3.amazonaws.com/${fileName}`;
+    } else if (endpoint.includes('supabase.co')) {
+      // ✅ SE FOR SUPABASE: Ajusta a URL de visualização
+      // O endpoint de upload é ".../storage/v1/s3"
+      // A URL pública é ".../storage/v1/object/public"
+      const publicUrlBase = endpoint.replace('/s3', '/object/public');
+      fileUrl = `${publicUrlBase}/${this.bucketName}/${fileName}`;
     } else {
-      // Development / LocalStack
-      const safeEndpoint = endpoint || 'http://localhost:4566';
-      fileUrl = `${safeEndpoint}/${this.bucketName}/${fileName}`;
+      // Outros (LocalStack, MinIO, etc)
+      fileUrl = `${endpoint}/${this.bucketName}/${fileName}`;
     }
 
     return fileUrl;
