@@ -11,6 +11,8 @@ import {
   ParseUUIDPipe,
   UploadedFile,
   Query,
+  Header,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ProductsService } from './products.service';
@@ -58,10 +60,10 @@ export class ProductsController {
   }
 
   @Get('dashboard')
-  getDashboard(@Query('sellerId') sellerId: string) {
+  @Header('Cache-Control', 'no-store')
+  async getDashboardStats(@Query('sellerId') sellerId: string) {
     if (!sellerId) {
-      // Simples validação manual enquanto não temos Auth Guard
-      throw new Error('Seller ID is required');
+      throw new BadRequestException('Seller ID is required');
     }
     return this.productsService.getDashboardStats(sellerId);
   }
