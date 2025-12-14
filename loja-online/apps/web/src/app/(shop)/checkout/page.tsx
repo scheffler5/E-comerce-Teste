@@ -1,12 +1,13 @@
+export const dynamic = 'force-dynamic';
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, CreditCard, ShieldCheck } from 'lucide-react';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
 
-export default function CheckoutPage() {
+function CheckoutContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const productId = searchParams.get('productId');
@@ -223,5 +224,13 @@ export default function CheckoutPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function CheckoutPage() {
+    return (
+        <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="animate-spin text-red-600" size={40} /></div>}>
+            <CheckoutContent />
+        </Suspense>
     );
 }
