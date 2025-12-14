@@ -2,14 +2,14 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { ProductCard } from '@/components/products/ProductCard';
 import { SearchProductItem } from '@/components/products/SearchProductItem';
 import { LoginModal } from '@/components/auth/LoginModal';
 import api from '@/lib/axios';
 import { Loader2 } from 'lucide-react';
 
-export default function SearchPage() {
+const SearchContent = () => {
     const searchParams = useSearchParams();
     const query = searchParams.get('q') || '';
     const sortBy = searchParams.get('sort') || '';
@@ -183,6 +183,14 @@ export default function SearchPage() {
 
             <LoginModal isOpen={false} onClose={() => { }} />
         </div>
+    );
+}
+
+export default function SearchPage() {
+    return (
+        <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="animate-spin text-red-600" size={40} /></div>}>
+            <SearchContent />
+        </Suspense>
     );
 }
 
