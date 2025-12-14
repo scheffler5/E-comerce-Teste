@@ -50,6 +50,10 @@ Para garantir um ambiente de desenvolvimento idêntico ao de produção sem cust
 *   **Senha**: `123456`
 *   **Usuário**: vendedor
 
+### 👤 Cliente (Comprador)
+*   **Email**: `teste2@gmail.com`
+*   **Senha**: `123456`
+*   **Usuário**: teste2
 ---
 
 ## 📦 Funcionalidades Detalhadas
