@@ -65,8 +65,18 @@ export class StorageService {
       }),
     );
 
-    // Retorna a URL montada manualmente para o LocalStack
-    return `http://localhost:4566/${this.bucketName}/${fileName}`;
+    // Generate URL based on environment
+    let fileUrl: string;
+
+    if (process.env.NODE_ENV === 'production') {
+      fileUrl = `https://${this.bucketName}.s3.amazonaws.com/${fileName}`;
+    } else {
+      // Development / LocalStack
+      const endpoint = this.configService.get<string>('AWS_S3_ENDPOINT') || 'http://localhost:4566';
+      fileUrl = `${endpoint}/${this.bucketName}/${fileName}`;
+    }
+
+    return fileUrl;
   }
   async deleteFile(fileUrl: string): Promise<void> {
     const urlParts = fileUrl.split('/');
