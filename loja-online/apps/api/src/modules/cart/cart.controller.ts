@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Delete, Body, Param, ParseUUIDPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  ParseUUIDPipe,
+  Query,
+  Patch,
+} from '@nestjs/common';
 import { CartService } from './cart.service';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 
@@ -13,10 +23,9 @@ export class CartController {
   }
 
   // Consultar carrinho
-  // Como é GET, estou usando @Body para teste, mas lembre que em GET body não é padrão
   @Get()
-  async getCart(@Body() body: { userId: string }) {
-    return this.cartService.getCart(body.userId);
+  async getCart(@Query('userId') userId: string) {
+    return this.cartService.getCart(userId);
   }
 
   // Remover item do carrinho
@@ -24,5 +33,15 @@ export class CartController {
   @Delete(':itemId')
   async removeItem(@Param('itemId', ParseUUIDPipe) itemId: string) {
     return this.cartService.removeItem(itemId);
-}
+  }
+
+  // Atualizar Quantidade
+  // PATCH /cart/:itemId
+  @Patch(':itemId')
+  async updateItem(
+    @Param('itemId', ParseUUIDPipe) itemId: string,
+    @Body('quantity') quantity: number,
+  ) {
+    return this.cartService.updateItem(itemId, quantity);
+  }
 }

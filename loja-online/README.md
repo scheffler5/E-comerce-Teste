@@ -1,135 +1,119 @@
-# Turborepo starter
+# 🛒 Loja Online E-commerce
 
-This Turborepo starter is maintained by the Turborepo core team.
+Este projeto é uma plataforma completa de comércio eletrônico desenvolvida com uma arquitetura moderna e escalável, utilizando **Monorepo** para gerenciar o Frontend e Backend. A aplicação conecta Vendedores e Clientes, oferecendo fluxos distintos e personalizados para cada perfil.
 
-## Using this example
+---
 
-Run the following command:
+## 🚀 Tecnologias e Arquitetura
 
-```sh
-npx create-turbo@latest
-```
+O projeto segue uma arquitetura baseada em microsserviços/monorepo gerenciada pelo **TurboRepo**.
 
-## What's inside?
+### 🛠 Stack Tecnológica
 
-This Turborepo includes the following packages/apps:
+*   **Linguagem**: [TypeScript](https://www.typescriptlang.org/) (Frontend e Backend)
+*   **Monorepo Manager**: [TurboRepo](https://turbo.build/)
+*   **Backend (API)**: [NestJS](https://nestjs.com/)
+    *   Arquitetura modular.
+    *   Autenticação via JWT.
+    *   ORM: [Prisma](https://www.prisma.io/) com PostgreSQL.
+*   **Frontend (Web)**: [Next.js 14+](https://nextjs.org/) (App Router)
+    *   Estilização: [TailwindCSS](https://tailwindcss.com/).
+    *   Design Responsivo.
+    *   Componentes React modernos.
 
-### Apps and Packages
+### 📂 Estrutura de Diretórios
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+*   `apps/`
+    *   `api`: Servidor Backend (NestJS). Responsável por toda a regra de negócio, autenticação, gestão de produtos e pedidos.
+    *   `web`: Aplicação Frontend (Next.js). Interface do usuário para Clientes e Vendedores.
+*   `packages/`
+    *   `database`: Pacote compartilhado contendo o Schema do Prisma e configurações de banco de dados.
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+---
 
-### Utilities
+## 🔑 Acesso e Usuários de Teste
 
-This Turborepo has some additional tools already setup for you:
+> **⚠️ AVISO IMPORTANTE: Limitação de Cadastro**
+>
+> Atualmente, o sistema de envio de e-mails (SMTP) **não está ativo** em ambiente de desenvolvimento local.
+> O fluxo de cadastro de novos usuários exige a validação de um código MFA enviado por e-mail.
+> **Portanto, não é possível registrar novos usuários pelo Frontend** sem acesso ao banco de dados para recuperar o código manualmente.
+>
+> **Utilize as credenciais abaixo para testar todas as funcionalidades:**
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+### 👤 Cliente (Comprador)
+*   **Email**: `teste@gmail.com`
+*   **Senha**: `123456`
+*   **Usuário**: teste
 
-### Build
+### 🏪 Vendedor (Lojista)
+*   **Email**: `vendedor@gmail.com`
+*   **Senha**: `123456`
+*   **Usuário**: vendedor
 
-To build all apps and packages, run the following command:
+---
 
-```
-cd my-turborepo
+## 📦 Funcionalidades Detalhadas
 
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build
+### 1. Autenticação e Gestão de Conta
+O sistema suporta dois papéis distintos com fluxos de vida separados:
 
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build
-yarn dlx turbo build
-pnpm exec turbo build
-```
+*   **Login Unificado**: O sistema identifica automaticamente o papel do usuário (Cliente ou Vendedor).
+*   **Exclusão de Conta (Cliente)**:
+    *   O cliente pode excluir sua conta permanentemente.
+    *   **Histórico Preservado**: Por questões de auditoria, os registros de compras realizadas são mantidos no banco de dados, mas os dados pessoais são removidos/anonimizados.
+*   **Desativação de Loja (Vendedor)**:
+    *   Para garantir a integridade dos dados de vendas passadas, vendedores não excluem contas, apenas as **desativam**.
+    *   Ao desativar, todos os produtos daquele vendedor são automaticamente **ocultados** da loja pública.
 
-You can build a specific package by using a [filter](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters):
+### 2. Painel do Vendedor
+O vendedor possui um Dashboard exclusivo para gestão do sew negócio:
 
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build --filter=docs
+*   **Dashboard Analítico**:
+    *   Visualização clara do **Faturamento Total**.
+    *   Contador de **Produtos Vendidos** e **Produtos Cadastrados**.
+    *   Destaque para o **Produto Mais Vendido**.
+*   **Gestão de Produtos**:
+    *   **Cadastro Manual**: Formulário completo com upload de múltiplas imagens, definição de categoria, preço e estoque.
+    *   **Importação em Massa (CSV)**: Ferramenta para upload de planilhas CSV para cadastro rápido de grandes volumes de produtos. Processamento otimizado para performance.
+    *   **Edição e Remoção**: Capacidade de atualizar detalhes ou remover produtos do catálogo.
 
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build --filter=docs
-yarn exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-```
+### 3. Experiência do Cliente (Loja)
+A interface de compra foi desenhada para facilitar a descoberta e aquisição de produtos:
 
-### Develop
+*   **Catálogo e Busca**:
+    *   Filtragem eficiente de produtos direto no Back-end.
+    *   Listagem paginada para otimizar o carregamento.
+    *   Página de detalhes do produto com fotos, descrição e informações do vendedor.
+*   **Interações**:
+    *   **Favoritos**: O usuário pode salvar produtos em sua lista de desejos.
+    *   **Carrinho Persistente**: Os itens adicionados ao carrinho são salvos no banco de dados, permitindo que o usuário retome a compra de qualquer dispositivo.
+*   **Checkout**:
+    *   Fluxo de finalização de compra simples e direto.
+    *   Geração automática de registro no **Histórico de Compras**.
+    *   Redirecionamento inteligente: Se um usuário não logado tentar comprar, adicionar ao carrinho ou favoritar, ele é redirecionado para o Login.
 
-To develop all apps and packages, run the following command:
+---
 
-```
-cd my-turborepo
+## 🛠 Como Rodar o Projeto
 
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev
+1.  **Instalar Dependências**:
+    ```bash
+    npm install
+    ```
 
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev
-yarn exec turbo dev
-pnpm exec turbo dev
-```
+2.  **Configurar Banco de Dados**:
+    Certifique-se de ter um container Postgres rodando (veja `docker-compose.yml`) e execute as migrações:
+    ```bash
+    npx prisma migrate dev
+    ```
 
-You can develop a specific package by using a [filter](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters):
+3.  **Iniciar Aplicação**:
+    Na raiz do projeto, execute:
+    ```bash
+    npm run dev
+    ```
+    Isso iniciará tanto o **Frontend** (port 3000) quanto o **Backend** (port 3333).
 
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev --filter=web
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev --filter=web
-yarn exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo login
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo login
-yarn exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo link
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo link
-yarn exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.com/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.com/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.com/docs/reference/configuration)
-- [CLI Usage](https://turborepo.com/docs/reference/command-line-reference)
+---
+*Desenvolvido com foco em performance, segurança e experiência do usuário.*

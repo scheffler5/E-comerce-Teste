@@ -12,9 +12,19 @@ import { CartModule } from './modules/cart/cart.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { MailModule } from './modules/mail/mail.module';
 
-
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true, envFilePath: 'src/.env', }),UsersModule, ProductsModule, OrdersModule, AuthModule, DatabaseModule, FavoritesModule, CartModule, StorageModule, MailModule],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: 'src/.env' }),
+    UsersModule,
+    ProductsModule,
+    OrdersModule,
+    AuthModule,
+    DatabaseModule,
+    FavoritesModule,
+    CartModule,
+    StorageModule,
+    MailModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

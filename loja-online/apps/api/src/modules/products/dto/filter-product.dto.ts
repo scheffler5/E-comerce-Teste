@@ -32,4 +32,12 @@ export class FilterProductDto {
   @Type(() => Number)
   @IsNumber()
   maxPrice?: number;
+
+  @IsOptional()
+  @IsString()
+  sortBy?: string; // 'discount_desc', 'price_asc', 'price_desc', 'newest'
+
+  @IsOptional()
+  @IsString()
+  sellerId?: string;
 }

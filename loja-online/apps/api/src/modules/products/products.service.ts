@@ -1,19 +1,24 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { Readable } from 'stream';
-import csvParser from 'csv-parser'; 
+import csvParser from 'csv-parser';
 import { ProductCategory, Prisma } from '@prisma/client';
 import { FilterProductDto } from './dto/filter-product.dto';
 import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class ProductsService {
-  constructor(private readonly db: DatabaseService,
+  constructor(
+    private readonly db: DatabaseService,
     private readonly storageService: StorageService,
-  ) {}
+  ) { }
 
-  // Criação Manual
+  // Manual Creation
   async create(createProductDto: CreateProductDto, sellerId: string) {
     return this.db.product.create({
       data: {
@@ -23,15 +28,27 @@ export class ProductsService {
     });
   }
 
-  // Upload de CSV
+  // Update Product
+  async update(id: string, updateProductDto: any) {
+    // Check if product exists
+    return this.db.product.update({
+      where: { id },
+      data: updateProductDto
+    });
+  }
+
+  // CSV Upload
   async uploadCsv(file: Express.Multer.File, sellerId: string) {
-    // Validação básica de arquivo
-    if (!file || (file.mimetype !== 'text/csv' && !file.originalname.endsWith('.csv'))) {
+    // Basic file validation
+    if (
+      !file ||
+      (file.mimetype !== 'text/csv' && !file.originalname.endsWith('.csv'))
+    ) {
       throw new BadRequestException('O arquivo deve ser um CSV');
     }
 
     const productsToSave: Prisma.ProductCreateManyInput[] = [];
-    
+
     const stream = Readable.from(file.buffer.toString());
 
     return new Promise((resolve, reject) => {
@@ -49,21 +66,27 @@ export class ProductsService {
           };
 
           if (product.name && !isNaN(product.price)) {
-             productsToSave.push(product);
+            productsToSave.push(product);
           }
         })
         .on('end', async () => {
           try {
-            // Se o arquivo estiver vazio, evitamos erro no createMeny
+            // Avoid error on empty file
             if (productsToSave.length === 0) {
-                return resolve({ message: 'Nenhum produto válido encontrado no CSV', totalInserted: 0 });
+              return resolve({
+                message: 'Nenhum produto válido encontrado no CSV',
+                totalInserted: 0,
+              });
             }
 
             const result = await this.db.product.createMany({
               data: productsToSave,
-              skipDuplicates: true, 
+              skipDuplicates: true,
             });
-            resolve({ message: 'Processamento concluído', totalInserted: result.count });
+            resolve({
+              message: 'Processamento concluído',
+              totalInserted: result.count,
+            });
           } catch (error) {
             reject(error);
           }
@@ -73,18 +96,23 @@ export class ProductsService {
         });
     });
   }
-  
+
   private validateCategory(categoryStr: string): ProductCategory {
-    if (Object.values(ProductCategory).includes(categoryStr as ProductCategory)) {
+    if (
+      Object.values(ProductCategory).includes(categoryStr as ProductCategory)
+    ) {
       return categoryStr as ProductCategory;
     }
     return ProductCategory.OTHER;
   }
   async getDashboardStats(sellerId: string) {
+    console.log(`[DEBUG] getDashboardStats for sellerId: ${sellerId}`);
+
     // Quantidade de produtos
     const totalProducts = await this.db.product.count({
       where: { sellerId },
     });
+    console.log(`[DEBUG] totalProducts found: ${totalProducts}`);
 
     // Faturamento e Total Vendido
     const soldItems = await this.db.orderItem.findMany({
@@ -93,7 +121,10 @@ export class ProductsService {
     });
 
     const totalSold = soldItems.reduce((acc, item) => acc + item.quantity, 0);
-    const totalRevenue = soldItems.reduce((acc, item) => acc + (Number(item.unitPrice) * item.quantity), 0);
+    const totalRevenue = soldItems.reduce(
+      (acc, item) => acc + Number(item.unitPrice) * item.quantity,
+      0,
+    );
 
     // Best Seller
     const bestSellerGroup = await this.db.orderItem.groupBy({
@@ -105,7 +136,7 @@ export class ProductsService {
     });
 
     let bestSeller: any = null;
-    
+
     if (bestSellerGroup.length > 0) {
       const productId = bestSellerGroup[0].productId;
       const productDetails = await this.db.product.findUnique({
@@ -115,36 +146,134 @@ export class ProductsService {
 
       if (productDetails) {
         bestSeller = {
+          id: productDetails.id, // Needed for link
           name: productDetails.name,
           totalSold: bestSellerGroup[0]._sum.quantity,
           price: productDetails.price,
-          imageUrl: productDetails.images.length > 0 ? productDetails.images[0].url : null,
+          imageUrl:
+            productDetails.images.length > 0
+              ? productDetails.images[0].url
+              : null,
+          discountValue: productDetails.discountValue,
+          discountType: productDetails.discountType
         };
       }
     }
 
+    // Revenue History (6 Months)
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    const revenueItems = await this.db.orderItem.findMany({
+      where: {
+        sellerId,
+        order: {
+          createdAt: { gte: sixMonthsAgo }
+        }
+      },
+      select: {
+        unitPrice: true,
+        quantity: true,
+        order: {
+          select: { createdAt: true }
+        }
+      },
+    });
+
+    const revenueMap: Record<string, number> = {};
+
+    // Initialize history
+    for (let i = 0; i < 6; i++) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      revenueMap[key] = 0;
+    }
+
+    revenueItems.forEach(item => {
+      const date = item.order.createdAt;
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+      if (revenueMap[key] !== undefined) {
+        revenueMap[key] += Number(item.unitPrice) * item.quantity;
+      }
+    });
+
+    const revenueHistory = Object.entries(revenueMap).map(([date, revenue]) => ({
+      date, // YYYY-MM
+      revenue
+    })).sort((a, b) => a.date.localeCompare(b.date));
+
     return {
+      sellerIdDebug: sellerId,
       totalProducts,
       totalSold,
       totalRevenue,
       bestSeller,
+      revenueHistory
     };
   }
+
+  async findBestSellers(limit: number) {
+    const bestSellerGroup = await this.db.orderItem.groupBy({
+      by: ['productId'],
+      _sum: { quantity: true },
+      orderBy: { _sum: { quantity: 'desc' } },
+      take: limit,
+    });
+
+    if (bestSellerGroup.length === 0) return [];
+
+    const productIds = bestSellerGroup.map((g) => g.productId);
+
+    // Fetch product details
+    const products = await this.db.product.findMany({
+      where: { id: { in: productIds }, isPublished: true },
+      include: { images: { take: 1 } },
+    });
+
+    // Map back to preserve order or add 'sold' count if needed
+    return products;
+  }
+
+  async findBestOffers(limit: number) {
+    // Filter by products that HAVE a discount
+    return this.db.product.findMany({
+      where: {
+        isPublished: true,
+        discountValue: { not: null }, // Must have a discount
+      },
+      orderBy: { discountValue: 'desc' }, // Higher discount value = "Better" offer (simplification)
+      take: limit,
+      include: { images: { take: 1 } },
+    });
+  }
   async findAll(params: FilterProductDto) {
-    const { page = 1, limit = 10, search, category, minPrice, maxPrice } = params;
-    
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      category,
+      minPrice,
+      maxPrice,
+      sellerId,
+    } = params;
+
     // Cálculo do Pulo (Pagination)
     // Se estou na pág 1, pulo 0. Se estou na pág 2, pulo 10.
     const skip = (page - 1) * limit;
 
-    // Construção Dinâmica do Filtro (Where)
+    // Dynamic Filter Construction
     const where: any = {
-      // Regra base: Só mostra produtos publicados
-      isPublished: true, 
-      // Se tiver delete lógico (soft delete), adicione: deletedAt: null
+      // Base rule: Published only
+      isPublished: true,
     };
 
-    // Filtro de Texto (Busca no Nome OU na Descrição)
+    if (sellerId) {
+      where.sellerId = sellerId;
+    }
+
+    // Text Filter
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } }, // insensitive = ignora maiusc/minusc
@@ -161,25 +290,86 @@ export class ProductsService {
     if (minPrice || maxPrice) {
       where.price = {};
       if (minPrice) where.price.gte = minPrice;
-      if (maxPrice) where.price.lte = maxPrice; 
+      if (maxPrice) where.price.lte = maxPrice;
     }
 
-    
+    // Dynamic Sorting
+    let orderBy: any = { createdAt: 'desc' }; // Default
+    if (params.sortBy) {
+      if (params.sortBy === 'discount_desc') {
+        orderBy = { discountValue: 'desc' };
+        where.discountValue = { not: null };
+      } else if (params.sortBy === 'price_asc') {
+        orderBy = { price: 'asc' };
+      } else if (params.sortBy === 'price_desc') {
+        orderBy = { price: 'desc' };
+      }
+    }
+
     const [products, total] = await Promise.all([
       this.db.product.findMany({
         skip,
         take: limit,
         where,
-        orderBy: { createdAt: 'desc' }, 
-        include: { 
-           images: { take: 1 } 
-        } 
+        orderBy,
+        include: {
+          images: { take: 1 },
+        },
       }),
       this.db.product.count({ where }),
     ]);
 
+    // Calculate 6-month sales history
+    const productIds = products.map(p => p.id);
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    const orderItems = await this.db.orderItem.findMany({
+      where: {
+        productId: { in: productIds },
+        order: { createdAt: { gte: sixMonthsAgo } }
+      },
+      select: {
+        productId: true,
+        quantity: true,
+        unitPrice: true,
+        order: { select: { createdAt: true } }
+      }
+    });
+
+    const productsWithStats = products.map(product => {
+      const productSales = orderItems.filter(item => item.productId === product.id);
+
+      const revenueMap: Record<string, number> = {};
+
+      // Initialize last 6 months with 0
+      for (let i = 0; i < 6; i++) {
+        const d = new Date();
+        d.setMonth(d.getMonth() - i);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        revenueMap[key] = 0;
+      }
+
+      productSales.forEach(item => {
+        const date = item.order.createdAt;
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        if (revenueMap[key] !== undefined) {
+          revenueMap[key] += Number(item.unitPrice) * item.quantity;
+        }
+      });
+
+      const salesHistory = Object.entries(revenueMap)
+        .map(([date, revenue]) => ({ date, revenue }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      return {
+        ...product,
+        salesHistory
+      };
+    });
+
     return {
-      data: products,
+      data: productsWithStats,
       meta: {
         total,
         page,
@@ -188,10 +378,26 @@ export class ProductsService {
       },
     };
   }
-  findOne(id: string) { return this.db.product.findUnique({ where: { id } }); }
+  findOne(id: string) {
+    return this.db.product.findUnique({
+      where: { id },
+      include: {
+        images: true,
+        seller: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+  }
 
   async addProductImage(productId: string, file: Express.Multer.File) {
-    const product = await this.db.product.findUnique({ where: { id: productId } });
+    const product = await this.db.product.findUnique({
+      where: { id: productId },
+    });
     if (!product) throw new NotFoundException('Produto não encontrado');
     const imageUrl = await this.storageService.uploadFile(file);
     const savedImage = await this.db.productImage.create({
@@ -224,9 +430,9 @@ export class ProductsService {
     });
   }
 
-  // 2. SUBSTITUIR IMAGEM (Editar)
+  // Replace Image
   async replaceProductImage(imageId: string, newFile: Express.Multer.File) {
-    // A. Busca a imagem antiga
+    // Find old image
     const oldImage = await this.db.productImage.findUnique({
       where: { id: imageId },
     });
@@ -235,13 +441,13 @@ export class ProductsService {
       throw new NotFoundException('Imagem original não encontrada');
     }
 
-    // B. Deleta o arquivo antigo do S3
+    // Delete old S3 file
     await this.storageService.deleteFile(oldImage.url);
 
-    // C. Sobe o arquivo novo
+    // Upload new file
     const newImageUrl = await this.storageService.uploadFile(newFile);
 
-    // D. Atualiza o registro no banco
+    // Update DB record
     return this.db.productImage.update({
       where: { id: imageId },
       data: {
@@ -249,5 +455,4 @@ export class ProductsService {
       },
     });
   }
-
 }

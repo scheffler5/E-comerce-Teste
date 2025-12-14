@@ -1,4 +1,17 @@
-import { Controller, Get, Post, Body, Patch, Put,Param, Delete, UseInterceptors, ParseUUIDPipe, UploadedFile, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Put,
+  Param,
+  Delete,
+  UseInterceptors,
+  ParseUUIDPipe,
+  UploadedFile,
+  Query,
+} from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -6,41 +19,63 @@ import { FilterProductDto } from './dto/filter-product.dto';
 
 @Controller('products')
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(private readonly productsService: ProductsService) { }
 
   // Criação Manual
   @Post()
-  create(@Body() createProductDto: CreateProductDto, @Query('sellerId') sellerId: string) {
+  create(
+    @Body() createProductDto: CreateProductDto,
+    @Query('sellerId') sellerId: string,
+  ) {
     return this.productsService.create(createProductDto, sellerId);
   }
 
   // Upload CSV
   @Post('upload')
-  @UseInterceptors(FileInterceptor('file')) 
+  @UseInterceptors(FileInterceptor('file'))
   uploadCsv(
-    @UploadedFile() file: Express.Multer.File, 
-    @Query('sellerId') sellerId: string
+    @UploadedFile() file: Express.Multer.File,
+    @Query('sellerId') sellerId: string,
   ) {
     return this.productsService.uploadCsv(file, sellerId);
   }
 
   @Get()
-  findAll(@Query() filterDto: FilterProductDto) { 
+  findAll(@Query() filterDto: FilterProductDto) {
     return this.productsService.findAll(filterDto);
+  }
+
+  @Get('best-sellers')
+  findBestSellers(@Query('limit') limit: string) {
+    const limitNum = limit ? parseInt(limit) : 4; // Default to 4
+    return this.productsService.findBestSellers(limitNum);
+  }
+
+  @Get('best-offers')
+  findBestOffers(@Query('limit') limit: string) {
+    const limitNum = limit ? parseInt(limit) : 4; // Default to 4
+    return this.productsService.findBestOffers(limitNum);
+  }
+
+  @Get('dashboard')
+  getDashboard(@Query('sellerId') sellerId: string) {
+    if (!sellerId) {
+      // Simples validação manual enquanto não temos Auth Guard
+      throw new Error('Seller ID is required');
+    }
+    return this.productsService.getDashboardStats(sellerId);
   }
 
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.productsService.findOne(id);
   }
-  @Get('dashboard')
-  getDashboard(@Query('sellerId') sellerId: string) {
-    if (!sellerId) {
-      // Simples validação manual enquanto não temos Auth Guard
-      throw new Error('Seller ID is required'); 
-    }
-    return this.productsService.getDashboardStats(sellerId);
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() updateProductDto: any) { // Using standard body
+    return this.productsService.update(id, updateProductDto);
   }
+
   @Post(':id/images')
   @UseInterceptors(FileInterceptor('file')) // 'file' é o nome do campo no Insomnia
   async uploadImage(

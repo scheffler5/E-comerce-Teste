@@ -1,25 +1,33 @@
 import { Injectable } from '@nestjs/common';
-import { S3Client, PutObjectCommand, CreateBucketCommand, HeadBucketCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  CreateBucketCommand,
+  HeadBucketCommand,
+  DeleteObjectCommand,
+} from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class StorageService {
   private s3Client: S3Client;
-  private bucketName: string; 
+  private bucketName: string;
 
   constructor(private readonly configService: ConfigService) {
-
-  this.bucketName = this.configService.getOrThrow<string>('AWS_BUCKET_NAME');
+    this.bucketName = this.configService.getOrThrow<string>('AWS_BUCKET_NAME');
     const region = this.configService.getOrThrow<string>('AWS_REGION');
-    const accessKeyId = this.configService.getOrThrow<string>('AWS_ACCESS_KEY_ID');
-    const secretAccessKey = this.configService.getOrThrow<string>('AWS_SECRET_ACCESS_KEY');
-    const endpoint = this.configService.get<string>('AWS_S3_ENDPOINT'); 
+    const accessKeyId =
+      this.configService.getOrThrow<string>('AWS_ACCESS_KEY_ID');
+    const secretAccessKey = this.configService.getOrThrow<string>(
+      'AWS_SECRET_ACCESS_KEY',
+    );
+    const endpoint = this.configService.get<string>('AWS_S3_ENDPOINT');
 
-   this.s3Client = new S3Client({
+    this.s3Client = new S3Client({
       region: region,
-      endpoint: endpoint || undefined, 
-      forcePathStyle: !!endpoint, 
+      endpoint: endpoint || undefined,
+      forcePathStyle: !!endpoint,
       credentials: {
         accessKeyId: accessKeyId,
         secretAccessKey: secretAccessKey,
@@ -29,17 +37,23 @@ export class StorageService {
 
   async onModuleInit() {
     try {
-        await this.s3Client.send(new HeadBucketCommand({ Bucket: this.bucketName }));
+      await this.s3Client.send(
+        new HeadBucketCommand({ Bucket: this.bucketName }),
+      );
     } catch (error) {
-        console.log(`Bucket ${this.bucketName} não encontrado. Criando automaticamente...`);
-        await this.s3Client.send(new CreateBucketCommand({ Bucket: this.bucketName }));
-        console.log(`Bucket criado!`);
+      console.log(
+        `Bucket ${this.bucketName} não encontrado. Criando automaticamente...`,
+      );
+      await this.s3Client.send(
+        new CreateBucketCommand({ Bucket: this.bucketName }),
+      );
+      console.log(`Bucket criado!`);
     }
   }
   async uploadFile(file: Express.Multer.File): Promise<string> {
     const fileExtension = file.originalname.split('.').pop();
     const fileName = `${uuidv4()}.${fileExtension}`;
-    
+
     // Envia para o S3 (LocalStack)
     await this.s3Client.send(
       new PutObjectCommand({
@@ -47,7 +61,7 @@ export class StorageService {
         Key: fileName,
         Body: file.buffer,
         ContentType: file.mimetype,
-        ACL: 'public-read', 
+        ACL: 'public-read',
       }),
     );
 
@@ -56,8 +70,8 @@ export class StorageService {
   }
   async deleteFile(fileUrl: string): Promise<void> {
     const urlParts = fileUrl.split('/');
-    const fileName = urlParts.pop(); 
-    if (!fileName) return; 
+    const fileName = urlParts.pop();
+    if (!fileName) return;
     await this.s3Client.send(
       new DeleteObjectCommand({
         Bucket: this.bucketName,

@@ -47,15 +47,15 @@ export class CartService {
             product: true, // Traz os detalhes do produto (nome, preço)
           },
           orderBy: {
-            id: 'asc' // Ordena items por ordem de inserção
-          }
+            id: 'asc', // Ordena items por ordem de inserção
+          },
         },
       },
     });
 
     if (!cart) {
-        // Se não tiver carrinho, retorna array vazio ou objeto vazio
-        return { items: [] }; 
+      // Se não tiver carrinho, retorna array vazio ou objeto vazio
+      return { items: [] };
     }
 
     return cart;
@@ -65,16 +65,31 @@ export class CartService {
   async removeItem(itemId: string) {
     // Verifica se o item existe antes de tentar deletar
     const item = await this.db.cartItem.findUnique({
-        where: { id: itemId }
+      where: { id: itemId },
     });
 
     if (!item) {
-        throw new NotFoundException('Item não encontrado no carrinho');
+      throw new NotFoundException('Item não encontrado no carrinho');
     }
 
     // Deleta do banco
     return this.db.cartItem.delete({
       where: { id: itemId },
+    });
+  }
+
+  // 4. Atualizar Quantidade
+  async updateItem(itemId: string, quantity: number) {
+    if (quantity <= 0) {
+      return this.removeItem(itemId);
+    }
+
+    const item = await this.db.cartItem.findUnique({ where: { id: itemId } });
+    if (!item) throw new NotFoundException('Item não encontrado');
+
+    return this.db.cartItem.update({
+      where: { id: itemId },
+      data: { quantity },
     });
   }
 
