@@ -101,37 +101,8 @@ export default function ProductDetailsPage() {
                 toast.error('Erro ao adicionar ao carrinho.');
             }
         } else if (action === 'buy') {
-            // For buy, we usually mean the main product. 
-            // If clicking buy on related product (if we had that button), we'd need logic.
-            // But ProductCard (Related) handles its own Buy? 
-            // Actually ProductCard has Buy button. 
-            // My ProductCard uses `handleAction('buy')`.
-            // Wait, `ProductCard` has `onToggleFavorite` but handles buy internally?
-            // Let's check ProductCard logic again.
-            // ProductCard handles 'buy' locally or via prop?
-            // ProductCard uses its own `handleAction`.
-            // In `ProductDetailsPage`, we render `ProductCard`. We do NOT pass `onBuy`.
-            // So `ProductCard` uses its own `handleAction`. 
-            // That `handleAction` uses `api.post('/cart')` for cart, but what about buy?
-            // ProductCard doesn't have `onBuy` prop in interface yet?
-            // Checking `ProductCard.tsx`... It calls `handleAction('buy')`.
-            // But my `ProductCard` logic for 'buy' is MISSING in `ProductCard.tsx`!
-            // I only fixed 'favorite'.
-            // I need to fix 'buy' in `ProductCard` too.
-
-            // For `ProductDetailsPage`'s specific `handleAction`:
-            // Check cart status
-            try {
-                const cartRes = await api.get(`/cart?userId=${user.id}`);
-                const cartItems = cartRes.data?.items || [];
-                if (cartItems.length === 0) {
-                    await handleBuyAlone(user.id);
-                } else {
-                    setShowBuyModal(true);
-                }
-            } catch (e) {
-                handleBuyAlone(user.id);
-            }
+            // Direct redirect to checkout for "Buy Now"
+            handleBuyAlone(user.id);
         } else if (action === 'favorite') {
             try {
                 await api.post(`/favorites/${idToUse}`, { id: user.id });

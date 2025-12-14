@@ -3,12 +3,25 @@
 import Link from 'next/link';
 import { Search, ShoppingCart, Heart, User, HelpCircle } from 'lucide-react';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export function Header() {
     const router = useRouter();
     const [search, setSearch] = useState('');
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+    useEffect(() => {
+        const checkAuth = () => {
+            const user = localStorage.getItem('loja-user');
+            setIsLoggedIn(!!user);
+        };
+
+        checkAuth();
+        // Listen for storage events (optional but good for syncing tabs) or custom events
+        window.addEventListener('storage', checkAuth);
+        return () => window.removeEventListener('storage', checkAuth);
+    }, []);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -77,37 +90,44 @@ export function Header() {
                         Favoritos
                     </Link>
                     {/* Account Dropdown */}
-                    <div className="relative group">
-                        <Link href="#" className="flex items-center gap-1 hover:text-red-600 py-4">
-                            <User size={18} />
-                            Conta
-                        </Link>
+                    {isLoggedIn ? (
+                        <div className="relative group">
+                            <Link href="#" className="flex items-center gap-1 hover:text-red-600 py-4">
+                                <User size={18} />
+                                Conta
+                            </Link>
 
-                        {/* Dropdown Menu */}
-                        <div className="absolute right-0 top-full pt-2 w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                            <div className="bg-white rounded-md shadow-xl border border-gray-100 overflow-hidden flex flex-col">
-                                <Link href="/orders" className="px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100">
-                                    Ver histórico de compras
-                                </Link>
-                                <Link href="/profile/edit" className="px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100">
-                                    Editar perfil
-                                </Link>
-                                <button className="px-4 py-3 text-sm text-gray-400 cursor-not-allowed text-left border-b border-gray-100">
-                                    Gerenciar conta
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        localStorage.removeItem('loja-user');
-                                        localStorage.removeItem('access_token');
-                                        window.location.href = '/';
-                                    }}
-                                    className="px-4 py-3 text-sm text-red-600 hover:bg-red-50 text-left font-medium"
-                                >
-                                    Sair
-                                </button>
+                            {/* Dropdown Menu */}
+                            <div className="absolute right-0 top-full pt-2 w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                                <div className="bg-white rounded-md shadow-xl border border-gray-100 overflow-hidden flex flex-col">
+                                    <Link href="/orders" className="px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100">
+                                        Ver histórico de compras
+                                    </Link>
+                                    <Link href="/profile/edit" className="px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100">
+                                        Editar perfil
+                                    </Link>
+                                    <button className="px-4 py-3 text-sm text-gray-400 cursor-not-allowed text-left border-b border-gray-100">
+                                        Gerenciar conta
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            localStorage.removeItem('loja-user');
+                                            localStorage.removeItem('access_token');
+                                            window.location.href = '/';
+                                        }}
+                                        className="px-4 py-3 text-sm text-red-600 hover:bg-red-50 text-left font-medium"
+                                    >
+                                        Sair
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    ) : (
+                        <Link href="/login" className="flex items-center gap-1 hover:text-red-600">
+                            <User size={18} />
+                            Logar
+                        </Link>
+                    )}
                     <Link href="/cart" className="flex items-center gap-1 hover:text-red-600">
                         Carrinho
                     </Link>
