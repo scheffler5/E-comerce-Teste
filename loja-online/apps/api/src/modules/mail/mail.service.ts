@@ -1,58 +1,67 @@
 import { Injectable, Logger } from '@nestjs/common';
-import * as nodemailer from 'nodemailer';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class MailService {
-  private transporter: nodemailer.Transporter;
   private readonly logger = new Logger(MailService.name);
+  private apiKey: string;
+  private senderEmail: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.transporter = nodemailer.createTransport({
-      host: this.configService.getOrThrow('SMTP_HOST'),
-      port: 465,
-      secure: true,
-      auth: {
-        user: this.configService.getOrThrow('SMTP_USER'),
-        pass: this.configService.getOrThrow('SMTP_PASS'),
-      },
-      // 👇 ADICIONE ISTO AQUI! É O QUE CONSERTA O TIMEOUT NO RENDER
-      family: 4,
-      tls: {
-        rejectUnauthorized: false,
-      },
-    } as any);
+    this.apiKey = this.configService.getOrThrow<string>('BREVO_API_KEY');
+
+    // MUDANÇA AQUI: Pega o email da variável de ambiente
+    // Certifique-se que no Render o valor de SMTP_USER é: gabrischeffler2005@gmail.com
+    this.senderEmail = this.configService.getOrThrow<string>('SMTP_USER');
   }
 
   async sendMfaEmail(email: string, code: string) {
-    // Atenção: Use aqui o email que você validou no Brevo
-    // Se o seu SMTP_USER for o email validado, pode usar ele
-    const fromUser = this.configService.getOrThrow<string>('SMTP_USER');
-
-    // Fire & Forget (sem await para não travar o cadastro)
-    this.sendMailInBackground(fromUser, email, code);
+    // Fire & Forget: Chama a função sem await para não travar o cadastro
+    this.sendEmailHttp(email, code);
   }
 
-  private async sendMailInBackground(from: string, to: string, code: string) {
-    try {
-      this.logger.log(`🚀 (IPv4) Enviando via Brevo para ${to}...`);
+  private async sendEmailHttp(toEmail: string, code: string) {
+    const url = 'https://api.brevo.com/v3/smtp/email';
 
-      const info = await this.transporter.sendMail({
-        from: `"Loja Online" <${from}>`,
-        to: to,
-        subject: 'Seu Código de Verificação',
-        html: `
-           <div style="font-family: Arial; padding: 20px; border: 1px solid #ddd;">
-             <h2>Loja Online</h2>
-             <p>Seu código é:</p>
-             <h1 style="color: #2563eb; letter-spacing: 5px;">${code}</h1>
-           </div>
-        `,
+    const body = {
+      sender: {
+        email: this.senderEmail, // Usa o valor carregado do .env
+        name: "Loja Online"
+      },
+      to: [{ email: toEmail }],
+      subject: "Seu Código de Verificação",
+      htmlContent: `
+        <div style="font-family: Arial; padding: 20px; border: 1px solid #ddd;">
+           <h2>Loja Online</h2>
+           <p>Seu código é:</p>
+           <h1 style="color: #2563eb; letter-spacing: 5px;">${code}</h1>
+        </div>
+      `
+    };
+
+    try {
+      this.logger.log(`🚀 Enviando de ${this.senderEmail} para ${toEmail} via API...`);
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'api-key': this.apiKey,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(body),
       });
 
-      this.logger.log(`✅ Email enviado! ID: ${info.messageId}`);
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Erro API Brevo: ${errorData}`);
+      }
+
+      const data = await response.json();
+      this.logger.log(`✅ Email enviado com sucesso! MessageId: ${data.messageId}`);
+
     } catch (error) {
-      this.logger.error(`❌ Erro Brevo: ${error.message}`);
+      this.logger.error(`❌ Falha no envio HTTP: ${error.message}`);
     }
   }
 }
