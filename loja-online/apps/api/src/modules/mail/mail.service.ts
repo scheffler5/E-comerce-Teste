@@ -12,7 +12,8 @@ export class MailService {
     const pass = this.configService.getOrThrow<string>('SMTP_PASS');
 
     this.transporter = nodemailer.createTransport({
-      service: 'gmail', // <--- O SEGREDO: Isso configura host e porta automaticamente
+      service: 'gmail',
+      family: 4, // Força uso de IPv4
       auth: {
         user: user,
         pass: pass,
@@ -20,7 +21,7 @@ export class MailService {
       tls: {
         rejectUnauthorized: false, // Ajuda a não travar no Render
       },
-    });
+    } as any);
   }
 
   async sendMfaEmail(email: string, code: string) {
