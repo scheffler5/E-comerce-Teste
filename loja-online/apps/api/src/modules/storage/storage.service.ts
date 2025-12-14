@@ -66,14 +66,15 @@ export class StorageService {
     );
 
     // Generate URL based on environment
+    const endpoint = this.configService.get<string>('AWS_S3_ENDPOINT');
     let fileUrl: string;
 
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === 'production' || !endpoint) {
       fileUrl = `https://${this.bucketName}.s3.amazonaws.com/${fileName}`;
     } else {
       // Development / LocalStack
-      const endpoint = this.configService.get<string>('AWS_S3_ENDPOINT') || 'http://localhost:4566';
-      fileUrl = `${endpoint}/${this.bucketName}/${fileName}`;
+      const safeEndpoint = endpoint || 'http://localhost:4566';
+      fileUrl = `${safeEndpoint}/${this.bucketName}/${fileName}`;
     }
 
     return fileUrl;
